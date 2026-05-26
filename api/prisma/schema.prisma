@@ -1,0 +1,105 @@
+// Prisma schema — AUTO Dealership API
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Car {
+  id           Int      @id @default(autoincrement())
+  make         String
+  model        String
+  year         Int
+  price        Float
+  mileage      Int      @default(0)
+  category     String   // Sports | Supercar | Hypercar | GT | Electric
+  status       String   @default("available") // available | sold | reserved
+  color        String?
+  engine       String?
+  transmission String?
+  acceleration String?
+  topSpeed     String?
+  weight       String?
+  badge        String?
+  image        String?
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("cars")
+}
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  icon        String   @default("◈")
+  name        String
+  description String
+  price       String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("services")
+}
+
+model Inquiry {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String
+  phone         String?
+  subject       String
+  vehicle       String?
+  message       String
+  status        String   @default("new") // new | replied | closed
+  pipelineStage String?  // new | replied | test_drive | negotiate | closed
+  assignedToId  Int?
+  assignedTo    User?    @relation(fields: [assignedToId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("inquiries")
+}
+
+model NewsletterSubscriber {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("newsletter_subscribers")
+}
+
+model User {
+  id                 Int       @id @default(autoincrement())
+  name               String
+  email              String    @unique
+  password           String    // bcrypt hash
+  role               String    @default("sales") // admin | manager | sales
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  assignedInquiries  Inquiry[]
+
+  @@map("users")
+}
+
+model Settings {
+  id                 Int    @id @default(1)
+  dealerName         String @default("AUTO")
+  tagline            String @default("Drive the Extraordinary")
+  address            String @default("")
+  phone              String @default("")
+  email              String @default("")
+  mondayFridayHours  String @default("09:00 – 18:30")
+  saturdayHours      String @default("10:00 – 17:00")
+  sundayHours        String @default("By Appointment")
+  currency           String @default("EUR")
+  distanceUnit       String @default("km")
+  updatedAt          DateTime @updatedAt
+
+  @@map("settings")
+}

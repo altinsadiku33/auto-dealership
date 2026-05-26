@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes heroZoom {
+  from { transform: scale(1.0); }
+  to   { transform: scale(1.08); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scrollLine {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+@keyframes pageIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-hero-zoom {
+  animation: heroZoom 18s ease-in-out infinite alternate;
+  transform-origin: center center;
+  will-change: transform;
+}
+.animate-fade-up-1 { opacity: 0; animation: fadeUp 0.8s 0.4s ease forwards; }
+.animate-fade-up-2 { opacity: 0; animation: fadeUp 0.9s 0.7s ease forwards; }
+.animate-fade-up-3 { opacity: 0; animation: fadeUp 0.9s 1.0s ease forwards; }
+.animate-fade-up-4 { opacity: 0; animation: fadeUp 0.9s 1.3s ease forwards; }
+.animate-fade-up-5 { opacity: 0; animation: fadeUp 0.9s 1.6s ease forwards; }
+.animate-fade-up-6 { opacity: 0; animation: fadeUp 1.0s 2.0s ease forwards; }
+.animate-scroll-line { animation: scrollLine 2s ease-in-out infinite; }
+
+@layer base {
+  :root {
+    --color-brand: hsl(192, 70%, 28%);
+    --color-brand-foreground: #ffffff;
+    --color-sidebar: hsl(215, 28%, 17%);
+    --color-sidebar-foreground: hsl(210, 40%, 98%);
+  }
+
+  html {
+    font-feature-settings: 'cv11';
+  }
+
+  body {
+    @apply bg-zinc-50 text-zinc-950 antialiased;
+  }
+}
