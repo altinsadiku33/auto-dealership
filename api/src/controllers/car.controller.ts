@@ -37,4 +37,23 @@ export const carController = {
       res.json({ success: true });
     } catch (err) { next(err); }
   },
+
+  async uploadImages(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        res.status(400).json({ success: false, error: 'No files uploaded' });
+        return;
+      }
+      const images = await carService.addImages(+req.params['id']!, files);
+      res.status(201).json({ success: true, data: images });
+    } catch (err) { next(err); }
+  },
+
+  async deleteImage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await carService.deleteImage(+req.params['id']!, +req.params['imageId']!);
+      res.json({ success: true });
+    } catch (err) { next(err); }
+  },
 };

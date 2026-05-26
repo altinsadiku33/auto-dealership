@@ -12,14 +12,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Text } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
 import { useSettings } from '@/hooks/useSettings'
-import type { Car } from '@/lib/api'
+import type { Car, CarImage } from '@/lib/api'
 import { api } from '@/lib/api'
 import { CAR_BADGES, CAR_CATEGORIES, CAR_COLORS, CAR_MAKES, TRANSMISSION_OPTIONS } from '@/lib/carConstants'
 import { formatMileage, formatPrice } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { PlusIcon } from '@heroicons/react/16/solid'
-import { MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/20/solid'
+import { PlusIcon, XMarkIcon } from '@heroicons/react/16/solid'
+import { MagnifyingGlassIcon, PencilSquareIcon, PhotoIcon, TrashIcon } from '@heroicons/react/20/solid'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Image from 'next/image'
 import { useState } from 'react'
@@ -41,7 +41,6 @@ const carSchema = z.object({
   topSpeed: z.string().optional(),
   weight: z.string().optional(),
   badge: z.string().optional().transform((v) => v || undefined),
-  image: z.string().optional(),
   description: z.string().optional(),
 })
 type CarForm = z.infer<typeof carSchema>
@@ -61,14 +60,30 @@ export default function VehiclesPage() {
   const [filterStatus, setFilterStatus] = useState('')
   const [editing, setEditing] = useState<Car | null | undefined>(undefined)
   const [deleting, setDeleting] = useState<Car | null>(null)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [uploadingImages, setUploadingImages] = useState(false)
 
   const { data: cars = [], isLoading } = useQuery({ queryKey: ['cars'], queryFn: () => api.getCars() })
   const { currency, distanceUnit } = useSettings()
 
+  const deleteImageMutation = useMutation({
+    mutationFn: ({ carId, imageId }: { carId: number; imageId: number }) =>
+      api.deleteCarImage(carId, imageId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cars'] }),
+  })
+
   const saveMutation = useMutation({
     mutationFn: (data: CarForm) =>
       editing?.id ? api.updateCar(editing.id, data) : api.createCar(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cars'] }); setEditing(undefined) },
+    onSuccess: async (car) => {
+      if (pendingFiles.length > 0) {
+        setUploadingImages(true)
+        try { await api.uploadCarImages(car.id, pendingFiles) } finally { setUploadingImages(false) }
+      }
+      qc.invalidateQueries({ queryKey: ['cars'] })
+      setEditing(undefined)
+      setPendingFiles([])
+    },
   })
 
   const deleteMutation = useMutation({
@@ -89,6 +104,7 @@ export default function VehiclesPage() {
 
   function openAdd() {
     reset({ year: new Date().getFullYear(), mileage: 0, category: 'Sports', status: 'available' })
+    setPendingFiles([])
     setEditing(null)
   }
 
@@ -98,8 +114,9 @@ export default function VehiclesPage() {
       category: car.category, status: car.status,
       color: car.color ?? '', engine: car.engine ?? '', transmission: car.transmission ?? '',
       acceleration: car.acceleration ?? '', topSpeed: car.topSpeed ?? '', weight: car.weight ?? '',
-      badge: car.badge ?? '', image: car.image ?? '', description: car.description ?? '',
+      badge: car.badge ?? '', description: car.description ?? '',
     })
+    setPendingFiles([])
     setEditing(car)
   }
 
@@ -168,13 +185,18 @@ export default function VehiclesPage() {
             <TableRow key={car.id}>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  {car.image ? (
-                    <div className="relative size-12 rounded overflow-hidden shrink-0 bg-[#2A2A2A]">
-                      <Image src={car.image} alt={`${car.make} ${car.model}`} fill className="object-cover" />
-                    </div>
-                  ) : (
-                    <div className="size-12 rounded bg-[#2A2A2A] shrink-0" />
-                  )}
+                  {(() => {
+                    const thumb = car.images?.[0]?.url
+                      ? `http://localhost:3001${car.images[0].url}`
+                      : car.image
+                    return thumb ? (
+                      <div className="relative size-12 rounded overflow-hidden shrink-0 bg-[#2A2A2A]">
+                        <Image src={thumb} alt={`${car.make} ${car.model}`} fill className="object-cover" />
+                      </div>
+                    ) : (
+                      <div className="size-12 rounded bg-[#2A2A2A] shrink-0" />
+                    )
+                  })()}
                   <div>
                     <div className="font-medium text-[#F0EDE8]">{car.make} {car.model}</div>
                     {car.badge && <div className="text-xs text-brand-600">{car.badge}</div>}
@@ -304,10 +326,64 @@ export default function VehiclesPage() {
                     {CAR_BADGES.map((b) => <option key={b} value={b}>{b}</option>)}
                   </Select>
                 </Field>
-                <Field className="col-span-2">
-                  <Label>Image URL</Label>
-                  <Input {...register('image')} placeholder="https://images.unsplash.com/…" />
-                </Field>
+                {/* Images */}
+                <div className="col-span-2 space-y-3">
+                  <p className="text-sm font-medium text-[#F0EDE8]">Images</p>
+
+                  {/* Existing images (edit mode) */}
+                  {editing?.id && editing.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {editing.images.map((img: CarImage) => (
+                        <div key={img.id} className="relative group size-20 rounded overflow-hidden bg-[#2A2A2A]">
+                          <img src={`http://localhost:3001${img.url}`} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => deleteImageMutation.mutate({ carId: editing.id, imageId: img.id })}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                            <XMarkIcon className="size-5 text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Pending files preview */}
+                  {pendingFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {pendingFiles.map((f, i) => (
+                        <div key={i} className="relative group size-20 rounded overflow-hidden bg-[#2A2A2A]">
+                          <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                            <XMarkIcon className="size-5 text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Upload button */}
+                  <label className="flex items-center gap-2 cursor-pointer w-fit px-3 py-2 rounded border border-[#3A3A3A] bg-[#1A1A1A] text-[#9A9490] hover:border-gold/40 hover:text-[#F0EDE8] transition-colors text-sm">
+                    <PhotoIcon className="size-4" />
+                    Add Photos
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? [])
+                        setPendingFiles((prev) => [...prev, ...files])
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </div>
+
                 <Field className="col-span-2">
                   <Label>Description</Label>
                   <Textarea {...register('description')} rows={3} />
@@ -317,8 +393,8 @@ export default function VehiclesPage() {
           </DialogBody>
           <DialogActions>
             <Button plain onClick={() => setEditing(undefined)}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting || saveMutation.isPending}>
-              {saveMutation.isPending ? 'Saving…' : 'Save Vehicle'}
+            <Button type="submit" disabled={isSubmitting || saveMutation.isPending || uploadingImages}>
+              {uploadingImages ? 'Uploading…' : saveMutation.isPending ? 'Saving…' : 'Save Vehicle'}
             </Button>
           </DialogActions>
         </form>

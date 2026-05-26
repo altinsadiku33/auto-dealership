@@ -2,6 +2,7 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 import { env } from './env';
 import { router } from './routes';
 import { errorMiddleware } from './middlewares/error.middleware';
@@ -43,6 +44,9 @@ export function createApp(): Application {
       services: [{ name: 'database', status: dbStatus, critical: true }],
     });
   });
+
+  // ── Static uploads ─────────────────────────────────────
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // ── API routes ──────────────────────────────────────────
   app.use('/api/v1', router);

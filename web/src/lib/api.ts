@@ -49,6 +49,22 @@ export const api = {
   updateCar: (id: number, data: Partial<Car>) =>
     request<Car>(`/api/v1/cars/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteCar: (id: number) => request<void>(`/api/v1/cars/${id}`, { method: 'DELETE' }),
+  uploadCarImages: (id: number, files: File[]) => {
+    const body = new FormData()
+    files.forEach((f) => body.append('files', f))
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auto_token') : null
+    return fetch(`${API_URL}/api/v1/cars/${id}/images`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body,
+    }).then(async (res) => {
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error ?? `HTTP ${res.status}`)
+      return data.data as import('./api').CarImage[]
+    })
+  },
+  deleteCarImage: (carId: number, imageId: number) =>
+    request<void>(`/api/v1/cars/${carId}/images/${imageId}`, { method: 'DELETE' }),
 
   // Services
   getServices: () => request<Service[]>('/api/v1/services'),
@@ -94,6 +110,14 @@ export const api = {
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
+export interface CarImage {
+  id: number
+  carId: number
+  url: string
+  order: number
+  createdAt: string
+}
+
 export interface Car {
   id: number
   make: string
@@ -112,6 +136,7 @@ export interface Car {
   badge: string | null
   image: string | null
   description: string | null
+  images: CarImage[]
   createdAt: string
   updatedAt: string
 }
