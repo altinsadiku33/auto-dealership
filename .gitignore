@@ -19,6 +19,8 @@ out/
 # Prisma
 api/prisma/*.db
 api/prisma/*.db-journal
+api/prisma/**/*.db
+api/prisma/**/*.db-journal
 
 # Logs
 logs/
