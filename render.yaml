@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: auto-dealership-api
+    runtime: node
+    rootDir: api
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    startCommand: sh start.sh
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        value: file:./prisma/auto.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false
+    disk:
+      name: sqlite-data
+      mountPath: /opt/render/project/src/api/prisma
+      sizeGB: 1
