@@ -19,7 +19,3 @@ services:
         value: 7d
       - key: CORS_ORIGIN
         sync: false
-    disk:
-      name: sqlite-data
-      mountPath: /opt/render/project/src/api/prisma
-      sizeGB: 1
